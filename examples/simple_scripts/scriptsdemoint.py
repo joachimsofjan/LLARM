@@ -21,6 +21,8 @@ import json
 import keyboard
 import speech_recognition as sr
 import pyttsx3
+import numpy as np
+import pyrealsense2 as rs
 
 # Default position after calibration
 default_x = 0.077
@@ -201,33 +203,40 @@ def image(prompt,depth_frame,color_image):
 
 
 def SpeechListener():
-    #Initialize recognizer
+    # Initialize recognizer
     r = sr.Recognizer()
-    try:
-        with sr.Microphone() as source:
+    while True:
+        try:
+            with sr.Microphone() as source:
+                # Adjust energy threshold
+                print("Adjusting threshold...")
+                r.adjust_for_ambient_noise(source, duration=1)
+                print("Ready to listen...")
+                print("\nPress space to speak")
+                
+                keyboard.wait('space')
+                print("Listening for 5 seconds...")
+                audio = r.listen(source, timeout=5, phrase_time_limit=5)
+                
+                print("Recognizing Speech....")
+                prompt = r.recognize_google(audio)
+                result = prompt.lower()
+                
+                print("Recognized speech: ", result)
+                return result
         
-            #Adjust energy threshold
-            print("Adjusting threshold...")
-            r.adjust_for_ambient_noise(source, duration=1)
-            print("Ready to listen...")
-            print("\n Press space to speak")
-            
-            keyboard.wait('space')
-            print("Listening for 5 seconds...")
-            audio = r.listen(source, timeout=5,phrase_time_limit=5)
-            
-            print("Recognizing Speech....")
-            prompt = r.recognize_google(audio)
-            result = prompt.lower()
-            
-            print("recognized speech: ", result)
-            return result
+        except sr.RequestError as e:
+            print("Could not request results; {0}".format(e))
+            print("Please try again.")
         
-    except sr.RequestError as e:
-        print("Could not request results; {0}".format(e))
-    
-    except sr.UnknownValueError:
-        print("Unknown error occured")
+        except sr.UnknownValueError:
+            print("Could not understand the audio.")
+            print("Please try again.")
+        
+        except sr.WaitTimeoutError:
+            print("Timeout while listening.")
+            print("Please try again.")
+
 
 def SpeakText(text):
     
@@ -235,11 +244,7 @@ def SpeakText(text):
     engine = pyttsx3.init()
     engine.say(text)
     engine.runAndWait()
-    
 
-
-import numpy as np
-import pyrealsense2 as rs
 
 def get_coordinates(pipe, align):
     print("get coordinates")
@@ -298,12 +303,6 @@ def get_coordinates(pipe, align):
 # Example usage:
 # pipe and align should be initialized RealSense pipeline and align objects
 # get_coordinates(pipe, align)
-
-    
-        
-        
-        
-        
         # results = model(color_image)
         # print(results)
         # for result in results:
@@ -329,9 +328,6 @@ def get_coordinates(pipe, align):
         #if time.time() - start_time > 15:
         #    break
 
-   
-
-
 def move_to(x, y, z, roll, pitch, yaw):
     niryo_one_client.open_gripper(gripper_used, gripper_speed)
     time.sleep(2)
@@ -340,51 +336,61 @@ def move_to(x, y, z, roll, pitch, yaw):
     time.sleep(2)
     niryo_one_client.close_gripper(gripper_used, gripper_speed)
     time.sleep(2)
+    # move to starting position
     niryo_one_client.move_pose(x_pos=0.077, y_pos=0.007, z_pos=0.159, roll_rot=-0.116, pitch_rot=1.213, yaw_rot=0.079)
     
+def main():
+    # Trying to calibrate
+    print("before cali")
+    status, data = niryo_one_client.calibrate(CalibrateMode.AUTO)
+    if status is False:
+        print("Error: " + data)
+    print("before pose")
+    # Getting pose
+    status, data = niryo_one_client.get_pose()
+    initial_pose = None
+    if status is True:
+        initial_pose = data
+    else:
+        print("Error: " + data)
 
-# Trying to calibrate
-print("before cali")
-status, data = niryo_one_client.calibrate(CalibrateMode.AUTO)
-if status is False:
-    print("Error: " + data)
-print("before pose")
-# Getting pose
-status, data = niryo_one_client.get_pose()
-initial_pose = None
-if status is True:
-    initial_pose = data
-else:
-    print("Error: " + data)
+    # Use coordinates from camera to move robot arm
+    print("before coords")
+    valid_coords = False
+    while not valid_coords:
+        try:
+            coords = get_coordinates(pipe,align)
+            x, y, z = coords
+            # Adjustment of the offsets between camera and robot arm
+            y=0-y
+            y-=0.1
+            z+=0.05
+            x-=0.05
+        
+            # Y negative are diff direction
+            roll, pitch, yaw = calculate_rpy_with_offsets(x, y, z)
+            print(f"Moving to coordinates: X={x:.2f}, Y={y:.2f}, Z={z:.2f}, roll={roll:.2f}, pitch={pitch:.2f}, yaw={yaw:.2f}")
+            move_to(x, y, z,roll, pitch, yaw)
+            valid_coords = True
 
-# Use coordinates from camera to move robot arm
-print("before coords")
-coords = get_coordinates(pipe,align)
-if coords:
-    x, y, z = coords
-    y=0-y
-    y-=0.1
-    z+=0.05
-    x-=0.05
-   
-    # Y negative are diff direction
-    roll, pitch, yaw = calculate_rpy_with_offsets(x, y, z)
-    print(f"Moving to coordinates: X={x:.2f}, Y={y:.2f}, Z={z:.2f}, roll={roll:.2f}, pitch={pitch:.2f}, yaw={yaw:.2f}")
-    move_to(x, y, z,roll, pitch, yaw)
-    
-else:
-    print("No valid coordinates detected.")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            print("Retrying to get valid coordinates...")
 
-# Reset to front position
-# niryo_one_client.move_pose(x_pos=0.077, y_pos=0.007, z_pos=0.159, roll_rot=-0.116, pitch_rot=1.213, yaw_rot=0.079)
 
-# Turning learning mode ON
-status, data = niryo_one_client.set_learning_mode(True)
-if status is False:
-    print("Error: " + data)
+    # Reset to front position
+    # niryo_one_client.move_pose(x_pos=0.077, y_pos=0.007, z_pos=0.159, roll_rot=-0.116, pitch_rot=1.213, yaw_rot=0.079)
 
-niryo_one_client.quit()
+    # Turning learning mode ON
+    status, data = niryo_one_client.set_learning_mode(True)
+    if status is False:
+        print("Error: " + data)
 
-# Stop the pipeline
-pipe.stop()
+    niryo_one_client.quit()
 
+    # Stop the pipeline
+    pipe.stop()
+
+
+if __name__ == "__main__":
+    main()

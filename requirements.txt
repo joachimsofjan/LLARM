@@ -1,0 +1,15 @@
+opencv-python
+numpy
+requests
+Pillow
+pybase64
+spacy
+openai
+argparse
+scikit-learn
+keyboard
+pyaudio
+SpeechRecognition
+pyttsx3
+pyrealsense2
+ultralytics
