@@ -369,9 +369,17 @@ def main():
         
             # Y negative are diff direction
             roll, pitch, yaw = calculate_rpy_with_offsets(x, y, z)
-            print(f"Moving to coordinates: X={x:.2f}, Y={y:.2f}, Z={z:.2f}, roll={roll:.2f}, pitch={pitch:.2f}, yaw={yaw:.2f}")
-            move_to(x, y, z,roll, pitch, yaw)
-            valid_coords = True
+            print(f"Coordinates to move to: X={x:.2f}, Y={y:.2f}, Z={z:.2f}, roll={roll:.2f}, pitch={pitch:.2f}, yaw={yaw:.2f}")
+
+            # Ask for user confirmation
+            user_confirmation = input("Proceed with these coordinates? (yes/no): ").strip().lower()
+            if user_confirmation == "yes":
+                move_to(x, y, z,roll, pitch, yaw)
+                #valid_coords = True
+                break
+            else: 
+                print("Retrying to get valid coordinates...")
+            
 
         except Exception as e:
             print(f"An error occurred: {e}")
