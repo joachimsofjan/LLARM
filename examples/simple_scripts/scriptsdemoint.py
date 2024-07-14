@@ -75,12 +75,10 @@ def calculate_rpy_with_offsets(x, y, z):
 
 #Connect to LLM
 client = OpenAI()
-nlp = spacy.load("en_core_web_sm")
-
 
 # Connecting to robot
 niryo_one_client = NiryoOneClient()
-niryo_one_client.connect("192.168.207.171")  # Replace by robot IP address
+niryo_one_client.connect("192.168.11.171")  # Replace by robot IP address
 gripper_used = RobotTool.GRIPPER_3  # Tool used for picking
 gripper_speed = 400
 # Load YOLOv8 model
@@ -363,9 +361,10 @@ def main():
             x, y, z = coords
             # Adjustment of the offsets between camera and robot arm
             y=0-y
-            y-=0.1
-            z+=0.05
+            y-=0.12
             x-=0.05
+            z=0-z
+            z+=0.2
         
             # Y negative are diff direction
             roll, pitch, yaw = calculate_rpy_with_offsets(x, y, z)
@@ -373,7 +372,7 @@ def main():
 
             # Ask for user confirmation
             user_confirmation = input("Proceed with these coordinates? (yes/no): ").strip().lower()
-            if user_confirmation == "yes":
+            if "y" in user_confirmation:
                 move_to(x, y, z,roll, pitch, yaw)
                 #valid_coords = True
                 break
