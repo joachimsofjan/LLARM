@@ -1,7 +1,7 @@
 opencv-python
 numpy
 requests
-Pillow
+pillow
 pybase64
 spacy
 openai
