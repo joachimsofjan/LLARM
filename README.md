@@ -22,3 +22,6 @@ Install the required Python packages:\
 ### 5. Run the Scripts
 `cd examples/simple_scripts`\
 `python scriptsdemoint.py`
+
+### 6. Change the IP Address to Connect to The Robot
+![image](https://github.com/user-attachments/assets/baef81b8-fc78-4a8f-bdcd-03144dc8023e)
