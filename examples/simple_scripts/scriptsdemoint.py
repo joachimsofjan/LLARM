@@ -23,6 +23,8 @@ import speech_recognition as sr
 import pyttsx3
 import numpy as np
 import pyrealsense2 as rs
+from PIL import Image
+
 
 # Default position after calibration
 default_x = 0.077
@@ -78,7 +80,7 @@ client = OpenAI()
 
 # Connecting to robot
 niryo_one_client = NiryoOneClient()
-niryo_one_client.connect("192.168.11.171")  # Replace by robot IP address
+niryo_one_client.connect("192.168.121.171")  # Replace by robot IP address
 gripper_used = RobotTool.GRIPPER_3  # Tool used for picking
 gripper_speed = 400
 # Load YOLOv8 model
@@ -260,6 +262,10 @@ def get_coordinates(pipe, align):
     # Convert images to numpy arrays
     depth_image = np.asanyarray(depth_frame.get_data())
     color_image = np.asanyarray(color_frame.get_data())
+    imagewhatsnew = Image.open("image.jpg") 
+    imagenew = np.array(imagewhatsnew)
+
+
 
     # Take prompt from user
     prompt = SpeechListener()
@@ -281,6 +287,9 @@ def get_coordinates(pipe, align):
     cv2.rectangle(color_image, (x1,y1), (x2, y2), color, thickness)
     cv2.circle(color_image, (x,y), thickness, color,-1)
     cv2.imshow('Image with Bounding Box', color_image)
+    # cv2.rectangle(imagenew, (x1,y1), (x2, y2), color, thickness)
+    # cv2.circle(imagenew, (x,y), thickness, color,-1)
+    # cv2.imshow('Not colour Image with Bounding Box', imagenew)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
@@ -327,15 +336,22 @@ def get_coordinates(pipe, align):
         #    break
 
 def move_to(x, y, z, roll, pitch, yaw):
-    niryo_one_client.open_gripper(gripper_used, gripper_speed)
-    time.sleep(2)
-    # add the offset to y and z
-    niryo_one_client.move_pose(x_pos=x, y_pos=y, z_pos=z, roll_rot=roll, pitch_rot=pitch, yaw_rot=yaw)
-    time.sleep(2)
-    niryo_one_client.close_gripper(gripper_used, gripper_speed)
-    time.sleep(2)
-    # move to starting position
-    niryo_one_client.move_pose(x_pos=0.077, y_pos=0.007, z_pos=0.159, roll_rot=-0.116, pitch_rot=1.213, yaw_rot=0.079)
+    if x>0.40:
+        # move to starting position
+        niryo_one_client.move_pose(x_pos=0.077, y_pos=0.007, z_pos=0.159, roll_rot=-0.116, pitch_rot=1.213, yaw_rot=0.079)
+        print("Too far away")
+        return
+    
+    else:
+        niryo_one_client.open_gripper(gripper_used, gripper_speed)
+        time.sleep(2)
+        # add the offset to y and z
+        niryo_one_client.move_pose(x_pos=x, y_pos=y, z_pos=z, roll_rot=roll, pitch_rot=pitch, yaw_rot=yaw)
+        time.sleep(2)
+        niryo_one_client.close_gripper(gripper_used, gripper_speed)
+        time.sleep(2)
+        # move to starting position
+        niryo_one_client.move_pose(x_pos=0.077, y_pos=0.007, z_pos=0.159, roll_rot=-0.116, pitch_rot=1.213, yaw_rot=0.079)
     
 def main():
     # Trying to calibrate
@@ -361,8 +377,8 @@ def main():
             x, y, z = coords
             # Adjustment of the offsets between camera and robot arm
             y=0-y
-            y-=0.12
-            x-=0.05
+            y-=0.1
+            # x-=0.05
             z=0-z
             z+=0.2
         
